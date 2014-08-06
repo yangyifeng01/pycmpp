@@ -52,8 +52,7 @@ class cmppconnect:
         self.__password = sp_passwd.encode('utf-8')
         self.__version = struct.pack('!B', 0x21)
         self.__timestamp = struct.pack('!L',get_numtime())
-        authenticatorsource = self.__sourceaddr + \
-                b'\x00\x00\x00\x00\x00\x00\x00\x00\x00' + \
+        authenticatorsource = self.__sourceaddr + 9*b'\x00' + \
                 self.__password + get_strtime().encode('utf-8')
         self.__md5 = hashlib.md5(authenticatorsource).digest()
         self.__length = 27
@@ -88,8 +87,7 @@ class cmppsubmit:
             DestUsr_tl = 1,
             Dest_terminal_Id = '8613900000000',
             Msg_Length = 4,
-            Msg_Content = 'test',
-            Reserve = 8*'0'):
+            Msg_Content = 'test'):
         self.__Msg_Id = struct.pack('!Q', Msg_Id)
         self.__Pk_total = struct.pack('!B', Pk_total)
         self.__Pk_number = struct.pack('!B', Pk_number)
@@ -111,7 +109,7 @@ class cmppsubmit:
         self.__Dest_terminal_Id = (Dest_terminal_Id+8*'\x00').encode('utf-8')
         self.__Msg_Length = struct.pack('!B', Msg_Length)
         self.__Msg_Content = Msg_Content.encode('utf-8')
-        self.__Reserve = Reserve.encode('utf-8')
+        self.__Reserve = 8*b'\x00'
         self.__length = 126 + 21 * DestUsr_tl + Msg_Length
         self.__body = self.__Msg_Id + \
                 self.__Pk_total + self.__Pk_number + \
@@ -126,6 +124,27 @@ class cmppsubmit:
                 self.__Dest_terminal_Id + self.__Msg_Length + \
                 self.__Msg_Content + self.__Reserve
 
+    def body(self):
+        return self.__body
+
+    def length(self):
+        return self.__length
+
+class cmppquery:
+
+    def __init__(self, 
+            Time = '20140806', 
+            Query_Type = 1, 
+            Query_Code = '0000000000'):
+        self.__Time = Time.encode('utf-8')
+        self.__Query_Type = struct.pack('!B', Query_Type)
+        self.__Query_Code = Query_Code.encode('utf-8')
+        self.__Reserve = 8*b'\x00'
+        self.__length = 27
+        self.__body = self.__Time + \
+                self.__Query_Type + \
+                self.__Query_Code + \
+                self.__Reserve
 
     def body(self):
         return self.__body
@@ -133,9 +152,50 @@ class cmppsubmit:
     def length(self):
         return self.__length
 
+class cmppdeliverresp:
+
+    def __init__(self, Msg_Id, Result):
+        self.__Msg_Id = Msg_Id
+        self.__Result = struct.pack('!B',Result)
+        self.__length = 9
+        self.__body = self.__Msg_Id + self.__Result
+
+    def body(self):
+        return self.__body
+
+    def length(self):
+        return self.__length
+
+class cmppcancel:
+
+    def __init__(self, Msg_Id):
+        self.__Msg_Id = Msg_Id
+        self.__length = 8
+        self.__body = self.__Msg_Id
+
+    def body(self):
+        return self.__body
+
+    def length(self):
+        return self.__length
+
+class cmppactiveresp:
+
+    def __init__(self):
+        self.__Reserved = b'\x00'
+        self.__length = 1
+        self.__body = self.__Reserved
+
+    def body(self):
+        return self.__body
+
+    def length(self):
+        return self.__length
+
+
 class cmpp:
     """
-    the base class to connect to ISMG
+    the basic class to connect to ISMG
     """
 
     def __init__(self, gateway='221.131.129.1', port=7890):

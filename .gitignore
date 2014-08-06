@@ -39,4 +39,5 @@ Icon
 .pyc
 
 # vim
-.*~
+*.py~
+*.gitignore~

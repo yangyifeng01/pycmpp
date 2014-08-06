@@ -59,6 +59,46 @@ class submitresp:
                 'Result': self.__Result
                 }
 
+class queryresp:
+
+    def __init__(self):
+        self.__Time = b''
+        self.__Query_Type = 0
+        self.__Query_Code = b''
+        self.__MT_TLMsg = 0
+        self.__MT_Tlusr = 0
+        self.__MT_Scs = 0
+        self.__MT_WT = 0
+        self.__MT_FL = 0
+        self.__MO_Scs = 0
+        self.__MO_WT = 0
+        self.__MO_FL = 0
+
+    def parse(self, body):
+        self.__Time = body[0:8]
+        self.__Query_Type = struct.unpack('!B', body[8:9])
+        self.__Query_Code = body[9:19]
+        self.__MT_TLMsg = struct.unpack('!L', body[19:23])
+        self.__MT_Tlusr = struct.unpack('!L', body[23:27])
+        self.__MT_Scs = struct.unpack('!L', body[27:31])
+        self.__MT_WT = struct.unpack('!L', body[31:35])
+        self.__MT_FL = struct.unpack('!L', body[35:39])
+        self.__MO_Scs = struct.unpack('!L', body[39:43])
+        self.__MO_WT = struct.unpack('!L', body[43:47])
+        self.__MO_FL = struct.unpack('!L', body[47:51])
+        return {'Time': self.__Time,
+                'Query_Type': self.__Query_Type,
+                'Query_Code': self.__Query_Code,
+                'MT_TLMsg': self.__MT_TLMsg,
+                'MT_Tlusr': self.__MT_Tlusr,
+                'MT_Scs': self.__MT_Scs,
+                'MT_WT': self.__MT_WT,
+                'MT_FL': self.__MT_FL,
+                'MO_Scs': self.__MO_Scs,
+                'MO_WT': self.__MO_WT,
+                'MO_FL': self.__MO_FL
+                }
+
 
 class msgcontent:
 
@@ -87,7 +127,6 @@ class msgcontent:
                 }
     def value(self):
         return self.__myself
-
 
 class deliver:
 
@@ -126,8 +165,23 @@ class deliver:
                 'Msg_Content' : self.__Msg_Content.value()
                 }
 
+class cancelresp:
+
+    def __init__(self):
+        self.__Success_Id = 0
 
 
+    def parse(self, body):
+        self.__Success_Id = struct.unpack('!B', body)
+        return {'Success_Id': self.__Success_Id
+                }
 
+class activetest:
+
+    def __init__(self):
+        self.__Reserved = 0;
+
+    def __parse(self, body):
+        return {}
 
 
