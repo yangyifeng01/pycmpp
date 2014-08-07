@@ -214,12 +214,12 @@ class cmpp:
     def send(self, message):
         self.__sp.send(message)
 
-    def recv(self, resp):
+    def recv(self):
         length = self.__sp.recv(4)
         maxlen,=struct.unpack('!L',length)
         self.__resp.parse(length + self.__sp.recv(maxlen-4))
         mh = self.__resp.parseheader()
-        mb = self.__resp.parsebody(resp)
+        mb = self.__resp.parsebody()
         return mh, mb
 
 

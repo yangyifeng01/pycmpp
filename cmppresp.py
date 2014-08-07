@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import struct
-import cmppdefines
+from cmppdefines import CMPP_CONNECT_RESP, CMPP_SUBMIT_RESP, CMPP_DELIVER, CMPP_DELIVER, CMPP_QUERY_RESP, CMPP_CANCEL_RESP, CMPP_ACTIVE_TEST, CMPP_ACTIVE_TEST_RESP
 
 class response:
 
@@ -12,6 +12,15 @@ class response:
         self.__bodylen = 0
         self.__command_id = 0
         self.__sequence_id = 0
+        self.__resp_obj = {
+                CMPP_CONNECT_RESP: connectresp,
+                CMPP_SUBMIT_RESP: submitresp,
+                CMPP_DELIVER: deliver,
+                CMPP_QUERY_RESP: queryresp,
+                CMPP_CANCEL_RESP: cancelresp,
+                CMPP_ACTIVE_TEST: activetest,
+                CMPP_ACTIVE_TEST_RESP: nothingresp
+                }
 
     def parse(self,info):
         self.__length, = struct.unpack('!L', info[0:4])
@@ -25,8 +34,10 @@ class response:
                 'command_id': self.__command_id,
                 'sequence_id': self.__sequence_id}
 
-    def parsebody(self,resp):
+    def parsebody(self):
+        resp = self.__resp_obj[self.__command_id]()
         return resp.parse(self.__body)
+        #return resp.parse(self.__body)
 
 
 class connectresp:
@@ -181,7 +192,11 @@ class activetest:
     def __init__(self):
         self.__Reserved = 0;
 
-    def __parse(self, body):
+    def parse(self, body):
         return {}
 
+class nothingresp:
+
+    def parse(self, body):
+        return {}
 

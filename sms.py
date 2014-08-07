@@ -15,8 +15,7 @@ mh = cmpp.messageheader(mb.length(), CMPP_CONNECT, 1)
 
 c.send(mh.header()+mb.body())
 #get response from ISMG
-resp = cmppresp.connectresp()
-h,b = c.recv(resp)
+h,b = c.recv()
 print(h,b)
 
 #submit short message to ISMG
@@ -26,13 +25,11 @@ mh = cmpp.messageheader(mb.length(), CMPP_SUBMIT, 2)
 c.send(mh.header()+mb.body())
 
 #get response from ISMG
-resp = cmppresp.submitresp()
-h,b = c.recv(resp)
+h,b = c.recv()
 print(h,b)
 
 
 #get response from ISMG
-resp = cmppresp.deliver()
-h,b = c.recv(resp)
+h,b = c.recv()
 print(h,b)
 
