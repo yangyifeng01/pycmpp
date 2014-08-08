@@ -1,4 +1,5 @@
-#!/usr/bin/env python
+﻿#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 import struct
 from cmppdefines import CMPP_CONNECT_RESP, CMPP_SUBMIT_RESP, CMPP_DELIVER, CMPP_DELIVER, CMPP_QUERY_RESP, CMPP_CANCEL_RESP, CMPP_ACTIVE_TEST, CMPP_ACTIVE_TEST_RESP
@@ -37,8 +38,6 @@ class response:
     def parsebody(self):
         resp = self.__resp_obj[self.__command_id]()
         return resp.parse(self.__body)
-        #return resp.parse(self.__body)
-
 
 class connectresp:
     

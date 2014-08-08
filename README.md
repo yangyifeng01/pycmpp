@@ -8,6 +8,7 @@ files
 ------------
   cmpp.py   
   cmppresp.py   
+  cmppsend.py   
   cmppdefines.py    
   sms.py    
   
