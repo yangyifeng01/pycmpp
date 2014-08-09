@@ -60,7 +60,6 @@ class cmpp:
 
     def longmessage(self, dest, content, isdelivery = 1):
         msg = self.__send.longmessage(dest, content, isdelivery, self.__internal_id)
-        print(msg)
         if len(msg) == 1:
             self.normalmessage(dest, content, isdelivery)
         else:

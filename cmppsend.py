@@ -51,7 +51,6 @@ class cmppsend:
             content_header = tp_udhi + \
                     struct.pack('B', times).decode('utf-8') + \
                     struct.pack('B', count+1).decode('utf-8')
-            print('content',content_header)
             content_slice = content[(0+count*67):(current_len//2+count*67)]
 
             mb = cmppsubmit(

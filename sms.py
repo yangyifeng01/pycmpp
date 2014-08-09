@@ -13,6 +13,11 @@ c.connect()
 h,b = c.recv()
 print(h,b)
 c.normalmessage(content = '测试一条短信', dest = '8613900000000')
+h,b = c.recv()
+print(h,b)
+
+h,b = c.recv()
+print(h,b)
 
 #c.longmessage(content = '测试一条长短信，测试一条长短信，测试一条长短信，测试一条长短信，测试一条长短信，测试一条长短信，测试一条长短信，测试一条长短信，测试一条长短信，', dest = '8613900000000')
 #
@@ -21,9 +26,7 @@ c.normalmessage(content = '测试一条短信', dest = '8613900000000')
 #
 #h,b = c.recv()
 #print(h,b)
+#
+#h,b = c.recv()
+#print(h,b)
 
-h,b = c.recv()
-print(h,b)
-
-h,b = c.recv()
-print(h,b)
