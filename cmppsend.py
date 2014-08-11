@@ -5,7 +5,7 @@
 import struct
 import hashlib
 import time
-from cmppdefines import CMPP_CONNECT, CMPP_SUBMIT, CMPP_DELIVER, CMPP_QUERY
+from cmppdefines import CMPP_CONNECT, CMPP_SUBMIT, CMPP_DELIVER_RESP, CMPP_QUERY, CMPP_ACTIVE_TEST, CMPP_ACTIVE_TEST_RESP
 
 class cmppsend:
 
@@ -16,13 +16,19 @@ class cmppsend:
         self.__sp_id = sp_id
         self.__sp_passwd = sp_passwd
         self.__src_id = src_id
+        self.__sequence_id = 1
 
-    def connect(self, sequence_id):
+    def __internal_id(self):
+        s = self.__sequence_id
+        self.__sequence_id += 1
+        return s
+
+    def connect(self):
         mb = cmppconnect(self.__sp_id, self.__sp_passwd)
-        mh = messageheader(mb.length(), CMPP_CONNECT, sequence_id())
-        return mh.header() + mb.body()
+        mh = messageheader(mb.length(), CMPP_CONNECT, self.__internal_id())
+        return mh.header() + mb.body(), mh.sequence_id()
 
-    def normalmessage(self, dest, content, isdelivery, sequence_id):
+    def normalmessage(self, dest, content, isdelivery):
         mb = cmppsubmit(
                 Msg_src = self.__sp_id, 
                 Src_Id = self.__src_id, 
@@ -30,16 +36,17 @@ class cmppsend:
                 Msg_Content = content, 
                 Msg_Length = len(content)*2, 
                 Dest_terminal_Id = dest)
-        mh = messageheader(mb.length(), CMPP_SUBMIT, sequence_id())
-        return mh.header() + mb.body()
+        mh = messageheader(mb.length(), CMPP_SUBMIT, self.__internal_id())
+        return mh.header() + mb.body(), mh.sequence_id()
 
-    def longmessage(self, dest, content, isdelivery, sequence_id):
+    def longmessage(self, dest, content, isdelivery):
         tp_udhi = '\x05\x00\x03\x37'
         remain_len = len(content)*2
         times = remain_len // 134
         if remain_len % 134 > 0:
             times += 1
         msg = []
+        seq = self.__internal_id()
         for count in range(0, times):
 
             if remain_len >= 134:
@@ -63,9 +70,23 @@ class cmppsend:
                     Dest_terminal_Id = dest, 
                     TP_pId = 1,
                     TP_udhi = 1)
-            mh = messageheader(mb.length(), CMPP_SUBMIT, sequence_id())
+            mh = messageheader(mb.length(), CMPP_SUBMIT, seq)
             msg.append(mh.header() + mb.body())
-        return msg
+        return msg, mh.sequence_id()
+
+    def cmppactive(self):
+        mh = messageheader(0, CMPP_ACTIVE_TEST, self.__internal_id())
+        return mh.header(), mh.sequence_id()
+
+    def cmppdeliverresp(self, Msg_Id, Result, sequence_id):
+        mb = cmppdeliverresp(Msg_Id, Result)
+        mh = messageheader(mb.length(), CMPP_DELIVER_RESP, sequence_id)
+        return mh.header() + mb.body(), mh.sequence_id()
+
+    def cmppactiveresp(self, sequence_id):
+        mb = cmppactiveresp()
+        mh = messageheader(mb.length(), CMPP_ACTIVE_TEST_RESP, sequence_id)
+        return mh.header() + mb.body(), mh.sequence_id()
 
 class messageheader:
     """
@@ -75,6 +96,7 @@ class messageheader:
         self.__total_length = struct.pack('!L', 12+messagebodylength)
         self.__command_id = struct.pack('!L', command_id)
         self.__sequence_id = struct.pack('!L', seq)
+        self.__sid = seq
 
     def header(self):
         return self.__total_length + self.__command_id + self.__sequence_id
@@ -86,7 +108,7 @@ class messageheader:
         return self.__command_id
 
     def sequence_id(self):
-        return self.__sequence_id
+        return self.__sid
 
 def get_numtime():
     """
@@ -140,7 +162,7 @@ class cmppsubmit:
             TP_udhi = 0,
             Msg_Fmt = 8,
             Msg_src = '000000',
-            FeeType = '05',
+            FeeType = '01',
             FeeCode = '000000',
             ValId_Time = 17*'\x00',
             At_Time = 17*'\x00',
@@ -220,8 +242,8 @@ class cmppquery:
 
 class cmppdeliverresp:
 
-    def __init__(self, Msg_Id, Result):
-        self.__Msg_Id = Msg_Id
+    def __init__(self, Msg_Id, Result = 0):
+        self.__Msg_Id = struct.pack('!Q',Msg_Id)
         self.__Result = struct.pack('!B',Result)
         self.__length = 9
         self.__body = self.__Msg_Id + self.__Result
