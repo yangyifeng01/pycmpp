@@ -10,6 +10,7 @@ files
   cmppresp.py   
   cmppsend.py   
   cmppdefines.py    
+  cmppthread.py
   sms.py    
   
   
