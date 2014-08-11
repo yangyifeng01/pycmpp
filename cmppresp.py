@@ -63,9 +63,9 @@ class submitresp:
         self.__Result = 0
 
     def parse(self, body):
-        self.__Status = body[0:8]
+        self.__Msg_Id = body[0:8]
         self.__Result, = struct.unpack('!B', body[8:9])
-        return {'Status': self.__Status,
+        return {'Msg_Id': self.__Msg_Id,
                 'Result': self.__Result
                 }
 
