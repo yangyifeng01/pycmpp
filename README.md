@@ -3,6 +3,8 @@ pycmpp
 
 cmpp by python, learning and learning.  
 
+It is more companioned to Jiangsu mobile.  
+
 Now python3.x is supported.  
 
 Now there is no thread protection for these thread, and I cannot granteed the performance when it under a hard pressure.  
