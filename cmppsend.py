@@ -5,7 +5,7 @@
 import struct
 import hashlib
 import time
-from cmppdefines import CMPP_CONNECT, CMPP_SUBMIT, CMPP_DELIVER_RESP, CMPP_QUERY, CMPP_ACTIVE_TEST, CMPP_ACTIVE_TEST_RESP
+from cmppdefines import CMPP_CONNECT, CMPP_SUBMIT, CMPP_TERMINATE, CMPP_DELIVER_RESP, CMPP_QUERY, CMPP_ACTIVE_TEST, CMPP_ACTIVE_TEST_RESP
 
 class cmppsend:
 
@@ -74,10 +74,6 @@ class cmppsend:
             msg.append(mh.header() + mb.body())
         return msg, mh.sequence_id()
 
-    def cmppactive(self):
-        mh = messageheader(0, CMPP_ACTIVE_TEST, self.__internal_id())
-        return mh.header(), mh.sequence_id()
-
     def cmppdeliverresp(self, Msg_Id, Result, sequence_id):
         mb = cmppdeliverresp(Msg_Id, Result)
         mh = messageheader(mb.length(), CMPP_DELIVER_RESP, sequence_id)
@@ -87,6 +83,14 @@ class cmppsend:
         mb = cmppactiveresp()
         mh = messageheader(mb.length(), CMPP_ACTIVE_TEST_RESP, sequence_id)
         return mh.header() + mb.body(), mh.sequence_id()
+
+    def cmppactive(self):
+        mh = messageheader(0, CMPP_ACTIVE_TEST, self.__internal_id())
+        return mh.header(), mh.sequence_id()
+
+    def cmppterminate(self):
+        mh = messageheader(0, CMPP_TERMINATE, self.__internal_id())
+        return mh.header(), mh.sequence_id()
 
 class messageheader:
     """

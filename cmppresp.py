@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import struct
-from cmppdefines import CMPP_CONNECT_RESP, CMPP_SUBMIT_RESP, CMPP_DELIVER, CMPP_DELIVER, CMPP_QUERY_RESP, CMPP_CANCEL_RESP, CMPP_ACTIVE_TEST, CMPP_ACTIVE_TEST_RESP
+from cmppdefines import CMPP_CONNECT_RESP, CMPP_SUBMIT_RESP, CMPP_TERMINATE_RESP, CMPP_DELIVER, CMPP_DELIVER, CMPP_QUERY_RESP, CMPP_CANCEL_RESP, CMPP_ACTIVE_TEST, CMPP_ACTIVE_TEST_RESP
 
 class response:
 
@@ -20,7 +20,8 @@ class response:
                 CMPP_QUERY_RESP: queryresp,
                 CMPP_CANCEL_RESP: cancelresp,
                 CMPP_ACTIVE_TEST: activetest,
-                CMPP_ACTIVE_TEST_RESP: nothingresp
+                CMPP_ACTIVE_TEST_RESP: nothingresp,
+                CMPP_TERMINATE_RESP: nothingresp
                 }
 
     def parse(self,info):
@@ -122,7 +123,8 @@ class msgcontent:
         self.__myself = {}
 
     def parse(self, body):
-        self.__Msg_Id = struct.unpack('!Q',body[0:8])
+        #self.__Msg_Id = struct.unpack('!Q',body[0:8])
+        self.__Msg_Id = body[0:8]
         self.__Stat = body[8:15]
         self.__Submit_time = body[15:25]
         self.__Done_time = body[25:35]
