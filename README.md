@@ -1,8 +1,12 @@
 pycmpp
 ======
 
-cmpp by python, learning and learning   
-Now python3.x is supported
+cmpp by python, learning and learning.  
+
+Now python3.x is supported.  
+
+Now there is no thread protection for these thread, and I cannot granteed the performance when it under a hard pressure.
+
 
 files
 ------------
