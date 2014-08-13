@@ -30,9 +30,9 @@ class cmpp:
         self.__send_queue = queue.Queue(50)
         self.__send_list = []
         self.__recv_list = []
-        self.__recvthread = cmppthread.recvthread(self.recv, self.deliverresp, self.activeresp, self.__send_list, self.__recv_list, 1)
+        self.__recvthread = cmppthread.recvthread(self.recv, self.deliverresp, self.activeresp, self.__send_list, self.__recv_list)
         self.__sendthread = cmppthread.sendthread(self.__sp.send, self.terminate, self.__send_queue, self.__send_list, self.__recv_list)
-        self.__contactthread = cmppthread.contactthread(self.active, self.__send_queue, 1)
+        self.__contactthread = cmppthread.contactthread(self.active, self.__send_queue)
 
     def __del__(self):
         if self.__recvthread.is_alive():

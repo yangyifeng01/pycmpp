@@ -9,12 +9,11 @@ from cmppdefines import CMPP_CONNECT_RESP, CMPP_SUBMIT_RESP, CMPP_DELIVER, CMPP_
 
 class resendbox(threading.Thread):
 
-    def __init__(self, send, terminate, send_list, recv_list, interval = 1, T = 30, N = 3):
+    def __init__(self, terminate, send_queue, send_list, interval = 1, T = 45, N = 3):
         threading.Thread.__init__(self)
         self.__resend_list = []
-        self.__send = send
+        self.__send_queue = send_queue
         self.__send_list = send_list
-        self.__recv_list = recv_list
         self.__count = 0
         self.__interval = interval
         self.__T = T
@@ -22,14 +21,9 @@ class resendbox(threading.Thread):
         self.__thread_stop = False
         self.__terminate = terminate
 
-
     def run(self):
         while not self.__thread_stop:
             self.__count += 1
-
-            for sid in self.__recv_list:
-                if sid in self.__send_list:
-                    self.__send_list.remove(sid)
 
             for resend in self.__resend_list:
                 if resend['seq'] in self.__send_list:
@@ -37,12 +31,12 @@ class resendbox(threading.Thread):
                         if resend['N'] == 0:
                             self.__terminate()
                         else:
-                            self.__send(resend['msg'])
+                            self.__send_list.remove(resend['seq'])
+                            self.__send_queue.put((resend['msg'],resend['seq']))
                             resend['N'] -= 1
                             resend['count'] = self.__count
                 else:
                     self.__resend_list.remove(resend)
-
 
             #print(self.__resend_list)
             time.sleep(self.__interval)
@@ -51,6 +45,30 @@ class resendbox(threading.Thread):
     def append(self,seq, msg):
         self.__resend_list.append({'seq': seq,
             'msg': msg, 'count': self.__count, 'N': self.__N})
+
+    def stop(self):
+        self.__thread_stop = True
+
+class scavenger(threading.Thread):
+
+    def __init__(self, send_list, recv_list, interval = 0.5):
+        threading.Thread.__init__(self)
+        self.__send_list = send_list
+        self.__recv_list = recv_list
+        self.__interval = interval
+        self.__thread_stop = False
+
+
+    def run(self):
+        while not self.__thread_stop:
+
+            for sid in self.__recv_list:
+                if sid in self.__send_list:
+                    self.__send_list.remove(sid)
+
+            #print(self.__resend_list)
+            time.sleep(self.__interval)
+        return
 
     def stop(self):
         self.__thread_stop = True
@@ -84,6 +102,7 @@ class recvthread(threading.Thread):
 
             except socket.error as arg:
                 print(arg)
+                time.sleep(1)
             time.sleep(self.__interval)
         return
 
@@ -93,21 +112,26 @@ class recvthread(threading.Thread):
 
 class sendthread(threading.Thread):
 
-    def __init__(self, send, terminate, send_queue, send_list, recv_list, interval = 1):
+    def __init__(self, send, terminate, send_queue, send_list, recv_list, interval = 1, flowcontrol = 15):
         threading.Thread.__init__(self)
         self.__interval = interval
         self.__thread_stop = False
         self.__send = send
         self.__send_queue = send_queue
         self.__send_list = send_list
-        self.__resendbox = resendbox(send, terminate, send_list, recv_list)
+        self.__scavenger = scavenger(send_list, recv_list, 1)
+        self.__resendbox = resendbox(terminate, send_queue, send_list)
+        self.__flowcontrol = flowcontrol
 
     def run(self):
         print('send thread start')
+        self.__resendbox.setDaemon(True)
+        self.__scavenger.setDaemon(True)
         self.__resendbox.start()
+        self.__scavenger.start()
         while not self.__thread_stop:
             try:
-                if len(self.__send_list) <16:
+                if len(self.__send_list) < self.__flowcontrol:
                     msg,seq = self.__send_queue.get()
                     if type(msg) == type([]):
                         for index in range(0,len(msg)):
@@ -125,6 +149,7 @@ class sendthread(threading.Thread):
         return
 
     def stop(self):
+        self.__scavenger.stop()
         self.__resendbox.stop()
         self.__thread_stop = True
 
