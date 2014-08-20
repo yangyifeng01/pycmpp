@@ -12,7 +12,7 @@ c.connect()
 c.start()
 
 for i in range(0,10):
-    c.sendmessage(content = '测试一条短信，测试一条短信，测试一条短信，测试一条短信', dest = '8613900000000', isdelivery = 1)
+    c.sendmessage(content = '测试一条短信，测试一条短信，测试一条短信，测试一条短信', dest = ['8613900000000',], isdelivery = 1)
 
 
 #c.sendmessage(content = '测试一条长短信，测试一条长短信，测试一条长短信，测试一条长短信，测试一条长短信，测试一条长短信，测试一条长短信，测试一条长短信，测试一条长短信，', dest = '8613900000000')

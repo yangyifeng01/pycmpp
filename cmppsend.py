@@ -5,92 +5,7 @@
 import struct
 import hashlib
 import time
-from cmppdefines import CMPP_CONNECT, CMPP_SUBMIT, CMPP_TERMINATE, CMPP_DELIVER_RESP, CMPP_QUERY, CMPP_ACTIVE_TEST, CMPP_ACTIVE_TEST_RESP
 
-class cmppsend:
-
-    def __init__(self, 
-            sp_id = '0', 
-            sp_passwd = '0', 
-            src_id = '0'):
-        self.__sp_id = sp_id
-        self.__sp_passwd = sp_passwd
-        self.__src_id = src_id
-        self.__sequence_id = 1
-
-    def __internal_id(self):
-        s = self.__sequence_id
-        self.__sequence_id += 1
-        return s
-
-    def connect(self):
-        mb = cmppconnect(self.__sp_id, self.__sp_passwd)
-        mh = messageheader(mb.length(), CMPP_CONNECT, self.__internal_id())
-        return mh.header() + mb.body(), mh.sequence_id()
-
-    def normalmessage(self, dest, content, isdelivery):
-        mb = cmppsubmit(
-                Msg_src = self.__sp_id, 
-                Src_Id = self.__src_id, 
-                Registered_Delivery = isdelivery, 
-                Msg_Content = content, 
-                Msg_Length = len(content)*2, 
-                Dest_terminal_Id = dest)
-        mh = messageheader(mb.length(), CMPP_SUBMIT, self.__internal_id())
-        return mh.header() + mb.body(), mh.sequence_id()
-
-    def longmessage(self, dest, content, isdelivery):
-        tp_udhi = '\x05\x00\x03\x37'
-        remain_len = len(content)*2
-        times = remain_len // 134
-        if remain_len % 134 > 0:
-            times += 1
-        msg = []
-        seq = self.__internal_id()
-        for count in range(0, times):
-
-            if remain_len >= 134:
-                current_len = 134
-            else:
-                current_len = remain_len
-            remain_len -= 134
-
-            content_header = tp_udhi + \
-                    struct.pack('B', times).decode('utf-8') + \
-                    struct.pack('B', count+1).decode('utf-8')
-            content_slice = content[(0+count*67):(current_len//2+count*67)]
-
-            mb = cmppsubmit(
-                    Msg_src = self.__sp_id, 
-                    Src_Id = self.__src_id, 
-                    Registered_Delivery = isdelivery, 
-                    Msg_Header = content_header, 
-                    Msg_Content = content_slice, 
-                    Msg_Length = current_len + 6, 
-                    Dest_terminal_Id = dest, 
-                    TP_pId = 1,
-                    TP_udhi = 1)
-            mh = messageheader(mb.length(), CMPP_SUBMIT, seq)
-            msg.append(mh.header() + mb.body())
-        return msg, mh.sequence_id()
-
-    def cmppdeliverresp(self, Msg_Id, Result, sequence_id):
-        mb = cmppdeliverresp(Msg_Id, Result)
-        mh = messageheader(mb.length(), CMPP_DELIVER_RESP, sequence_id)
-        return mh.header() + mb.body(), mh.sequence_id()
-
-    def cmppactiveresp(self, sequence_id):
-        mb = cmppactiveresp()
-        mh = messageheader(mb.length(), CMPP_ACTIVE_TEST_RESP, sequence_id)
-        return mh.header() + mb.body(), mh.sequence_id()
-
-    def cmppactive(self):
-        mh = messageheader(0, CMPP_ACTIVE_TEST, self.__internal_id())
-        return mh.header(), mh.sequence_id()
-
-    def cmppterminate(self):
-        mh = messageheader(0, CMPP_TERMINATE, self.__internal_id())
-        return mh.header(), mh.sequence_id()
 
 class messageheader:
     """
@@ -131,6 +46,8 @@ class cmppconnect:
     create a connection to ISMG on application layer
     """
     def __init__(self, sp_id='000000', sp_passwd='000000'):
+        if len(sp_id) != 6 or len(sp_passwd) != 6:
+            raise ValueError("sp_id and sp_passwd are both 6 bits")
         self.__sourceaddr = sp_id.encode('utf-8')
         self.__password = sp_passwd.encode('utf-8')
         self.__version = struct.pack('!B', 0x21)
@@ -172,10 +89,14 @@ class cmppsubmit:
             At_Time = 17*'\x00',
             Src_Id = '000000000000',
             DestUsr_tl = 1,
-            Dest_terminal_Id = '8613900000000',
-            Msg_Length = 4,
+            Dest_terminal_Id = ['8613900000000',],
+            Msg_Length = 8,
             Msg_Header = '',
             Msg_Content = 'test'):
+        if len(Msg_Content) >= 70:
+            raise ValueError("msg_content more than 70 words")
+        if len(Dest_terminal_Id) > 100:
+            raise ValueError("single submit more than 100 phone numbers")
         self.__Msg_Id = 8*b'\x00'
         self.__Pk_total = struct.pack('!B', Pk_total)
         self.__Pk_number = struct.pack('!B', Pk_number)
@@ -194,7 +115,10 @@ class cmppsubmit:
         self.__At_Time = At_Time.encode('utf-8')
         self.__Src_Id = (Src_Id + (21-len(Src_Id)) * '\x00').encode('utf-8')
         self.__DestUsr_tl = struct.pack('!B', DestUsr_tl)
-        self.__Dest_terminal_Id = (Dest_terminal_Id+8*'\x00').encode('utf-8')
+        #self.__Dest_terminal_Id = (Dest_terminal_Id+8*'\x00').encode('utf-8')
+        self.__Dest_terminal_Id = b""
+        for msisdn in Dest_terminal_Id:
+            self.__Dest_terminal_Id += (msisdn + (21 - len(msisdn))*'\x00').encode('utf-8')
         self.__Msg_Length = struct.pack('!B', Msg_Length)
         self.__Msg_Header = Msg_Header.encode('utf-8')
         self.__Msg_Content = Msg_Content.encode('utf-16-be')

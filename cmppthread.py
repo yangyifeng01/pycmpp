@@ -9,23 +9,23 @@ from cmppdefines import CMPP_CONNECT_RESP, CMPP_SUBMIT_RESP, CMPP_DELIVER, CMPP_
 
 class resendbox(threading.Thread):
 
-    def __init__(self, terminate, send_queue, send_list, interval = 1, T = 45, N = 3):
+    def __init__(self, terminate, send_queue, send_list, interval = 1, T = 60, N = 3):
         threading.Thread.__init__(self)
-        self.__resend_list = []
+        self.__resend_box = []
         self.__send_queue = send_queue
         self.__send_list = send_list
-        self.__count = 0
+        self.__terminate = terminate
         self.__interval = interval
         self.__T = T
         self.__N = N - 1
+        self.__count = 0
         self.__thread_stop = False
-        self.__terminate = terminate
 
     def run(self):
         while not self.__thread_stop:
             self.__count += 1
 
-            for resend in self.__resend_list:
+            for resend in self.__resend_box:
                 if resend['seq'] in self.__send_list:
                     if (self.__count - resend['count']) > self.__T:
                         if resend['N'] == 0:
@@ -36,14 +36,20 @@ class resendbox(threading.Thread):
                             resend['N'] -= 1
                             resend['count'] = self.__count
                 else:
-                    self.__resend_list.remove(resend)
+                    self.__resend_box.remove(resend)
 
-            #print(self.__resend_list)
+            if self.__count >= 604800:
+                for resend in self.__resend_box:
+                    sec = self.__count - resend['count']
+                    resend['count'] = self.__T - sec
+                self.__count = self.__T
+
+            #print(self.__resend_box)
             time.sleep(self.__interval)
         return
 
     def append(self,seq, msg):
-        self.__resend_list.append({'seq': seq,
+        self.__resend_box.append({'seq': seq,
             'msg': msg, 'count': self.__count, 'N': self.__N})
 
     def stop(self):
@@ -58,7 +64,6 @@ class scavenger(threading.Thread):
         self.__interval = interval
         self.__thread_stop = False
 
-
     def run(self):
         while not self.__thread_stop:
 
@@ -66,7 +71,36 @@ class scavenger(threading.Thread):
                 if sid in self.__send_list:
                     self.__send_list.remove(sid)
 
-            #print(self.__resend_list)
+            #print(self.__resend_box)
+            time.sleep(self.__interval)
+        return
+
+    def stop(self):
+        self.__thread_stop = True
+
+class heartbeat(threading.Thread):
+
+    def __init__(self, active, send_queue, interval=0.5, C=30):
+        threading.Thread.__init__(self)
+        self.__interval = interval
+        self.__thread_stop = False
+        self.__send_queue = send_queue
+        self.__active = active
+        self.__C = C
+
+    def run(self):
+        print('contact thread start')
+        count = 0
+        while not self.__thread_stop:
+            if count < (self.__C/self.__interval):
+                if self.__send_queue.qsize() != 0:
+                    count = 0
+                else:
+                    count += 1
+            else:
+                self.__active()
+                count = 0
+            #print('idle:%d' % count)
             time.sleep(self.__interval)
         return
 
@@ -77,13 +111,13 @@ class recvthread(threading.Thread):
 
     def __init__(self, recv, deliverresp, activeresp, send_list, recv_list, interval = 0):
         threading.Thread.__init__(self)
-        self.__interval = interval
-        self.__thread_stop = False
         self.__recv = recv
         self.__send_list = send_list
         self.__recv_list = recv_list
         self.__deliverresp = deliverresp
         self.__activeresp = activeresp
+        self.__interval = interval
+        self.__thread_stop = False
 
     def run(self):
         print('recv thread start')
@@ -99,10 +133,11 @@ class recvthread(threading.Thread):
                 elif h['command_id'] == CMPP_ACTIVE_TEST:
                     self.__activeresp(h['sequence_id'])
                     self.__recv_list.append(h['sequence_id'])
+                else:
+                    print('unknown command : %d' % h['command_id'])
 
             except socket.error as arg:
-                print(arg)
-                time.sleep(1)
+                pass
             time.sleep(self.__interval)
         return
 
@@ -112,26 +147,30 @@ class recvthread(threading.Thread):
 
 class sendthread(threading.Thread):
 
-    def __init__(self, send, terminate, send_queue, send_list, recv_list, interval = 1, flowcontrol = 15):
+    def __init__(self, send, terminate, active, send_queue, send_list, recv_list, interval = 0, rate = 15, C=40, T=60, N=3):
         threading.Thread.__init__(self)
         self.__interval = interval
-        self.__thread_stop = False
         self.__send = send
         self.__send_queue = send_queue
         self.__send_list = send_list
-        self.__scavenger = scavenger(send_list, recv_list, 1)
-        self.__resendbox = resendbox(terminate, send_queue, send_list)
-        self.__flowcontrol = flowcontrol
+        self.__heartbeat = heartbeat(active, send_queue, 0.5, C)
+        self.__scavenger = scavenger(send_list, recv_list)
+        self.__resendbox = resendbox(terminate, send_queue, send_list, 1, T, N)
+        self.__rate = rate
+        self.__thread_stop = False
 
     def run(self):
         print('send thread start')
         self.__resendbox.setDaemon(True)
         self.__scavenger.setDaemon(True)
+        self.__heartbeat.setDaemon(True)
         self.__resendbox.start()
         self.__scavenger.start()
+        self.__heartbeat.start()
+        sendstate = True
         while not self.__thread_stop:
             try:
-                if len(self.__send_list) < self.__flowcontrol:
+                if len(self.__send_list) < self.__rate and sendstate:
                     msg,seq = self.__send_queue.get()
                     if type(msg) == type([]):
                         for index in range(0,len(msg)):
@@ -143,42 +182,22 @@ class sendthread(threading.Thread):
 
                     print(self.__send_list)
                 else:
-                    time.sleep(self.__interval)
+                    if len(self.__send_list) > 0:
+                        sendstate = False
+                    else:
+                        sendstate = True
+                        time.sleep(self.__interval)
+
             except socket.error as arg:
                 print(arg)
+                time.sleep(1)
         return
 
     def stop(self):
         self.__scavenger.stop()
         self.__resendbox.stop()
+        self.__heartbeat.stop()
         self.__thread_stop = True
 
-class contactthread(threading.Thread):
 
-    def __init__(self, active, send_queue, interval=1, C=30):
-        threading.Thread.__init__(self)
-        self.__interval = interval
-        self.__thread_stop = False
-        self.__send_queue = send_queue
-        self.__active = active
-        self.__C = C
-
-    def run(self):
-        print('contact thread start')
-        count = 0
-        while not self.__thread_stop:
-            if count < (self.__C*2):
-                if self.__send_queue.qsize() != 0:
-                    count = 0
-                else:
-                    count += 1
-            else:
-                self.__active()
-                count = 0
-            #print('idle:%d' % count)
-            time.sleep(self.__interval/2)
-        return
-
-    def stop(self):
-        self.__thread_stop = True
 
