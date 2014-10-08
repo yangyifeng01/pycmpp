@@ -152,7 +152,7 @@ class deliver:
         self.__Src_terminal_Id = b''
         self.__Registered_Delivery = 0
         self.__Msg_Length = 0
-        self.__Msg_Content = msgcontent()
+        self.__Msg_Content = ''
 
     def parse(self, body):
         self.__Msg_Id, = struct.unpack('!Q', body[0:8])
@@ -164,7 +164,14 @@ class deliver:
         self.__Src_terminal_Id = body[42:63]
         self.__Registered_Delivery, = struct.unpack('!B', body[63:64])
         self.__Msg_Length, = struct.unpack('!B', body[64:65])
-        self.__Msg_Content.parse(body[65:self.__Msg_Length+65])
+        if self.__Registered_Delivery == 1:
+            submitstate = msgcontent()
+            submitstate.parse(body[65:self.__Msg_Length+65])
+            self.__Msg_Content = submitstate.value()
+        else:
+            self.__Msg_Content = body[65:self.__Msg_Length+65]
+            #msg_fmt = {0:'utf-8', 8:'utf-16-be', 15:'gbk'}
+            #self.__Msg_Content = body[65:self.__Msg_Length+65].decode(msg_fmt[self.__Msg_Fmt])
         return {'Msg_Id' : self.__Msg_Id,
                 'Dest_Id' : self.__Dest_Id,
                 'Service_Id' : self.__Service_Id,
@@ -174,7 +181,7 @@ class deliver:
                 'Src_terminal_Id' : self.__Src_terminal_Id,
                 'Registered_Delivery' : self.__Registered_Delivery,
                 'Msg_Length' : self.__Msg_Length,
-                'Msg_Content' : self.__Msg_Content.value()
+                'Msg_Content' : self.__Msg_Content
                 }
 
 class cancelresp:

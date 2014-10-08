@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python
+﻿#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 
@@ -7,6 +7,7 @@ import socket
 import struct
 import queue
 import cmppresp
+import time
 from cmppsend import messageheader, cmppconnect, cmppsubmit, cmppdeliverresp, cmppcancel, cmppactiveresp
 import cmppthread
 from cmppdefines import CMPP_CONNECT, CMPP_SUBMIT, CMPP_TERMINATE, CMPP_DELIVER_RESP, CMPP_QUERY, CMPP_ACTIVE_TEST, CMPP_ACTIVE_TEST_RESP
@@ -33,10 +34,9 @@ class cmpp:
         self.__resp = cmppresp.response()
         self.__debug = False
         self.__send_queue = queue.Queue(50)
-        self.__send_list = []
-        self.__recv_list = []
-        self.__recvthread = cmppthread.recvthread(self.recv, self.deliverresp, self.activeresp, self.__send_list, self.__recv_list)
-        self.__sendthread = cmppthread.sendthread(self.__sp.send, self.terminate, self.active, self.__send_queue, self.__send_list, self.__recv_list)
+        self.__recv_queue = queue.Queue(100)
+        self.__recvthread = cmppthread.recvthread(self.recv, self.deliverresp, self.activeresp, self.__recv_queue)
+        self.__sendthread = cmppthread.sendthread(self.__sp.send, self.terminate, self.active, self.__send_queue)
 
     def __del__(self):
         if self.__recvthread.is_alive():
@@ -76,7 +76,7 @@ class cmpp:
             self.__sp.connect(cmppaddr)
         except socket.error as arg:
             print(arg)
-            sys.exit(0)
+            sys.exit(100)
 
     def disconnectgateway(self):
         try:
@@ -93,18 +93,24 @@ class cmpp:
     def connect(self):
         mb = cmppconnect(self.__sp_id, self.__sp_passwd)
         mh = messageheader(mb.length(), CMPP_CONNECT, self.__internal_id(seq_type=0))
-        msg =  mh.header() + mb.body()
-        if self.__debug == True:
-            print(msg,len(msg))
-        self.__sp.send(msg)
-        h,b = self.recv()
-        while b['Status']!=0:
-            time.sleep(60)
+        try:
+            msg =  mh.header() + mb.body()
+            if self.__debug == True:
+                print(msg,len(msg))
             self.__sp.send(msg)
             h,b = self.recv()
-            print('wait for connect')
-        print(h,b)
-        #self.__send_queue.put(msg_seq)
+            print(h,b)
+            if b['Status']!=0:
+                print('connect failed, status: %d' % b['Status'])
+                self.__sp.close()
+                sys.exit(201)
+            else:
+                print('connect successfully')
+            #self.__send_queue.put(msg_seq)
+        except socket.error as arg:
+            self.__sp.close()
+            print(arg)
+            sys.exit(100)
 
     def normalmessage(self, dest, content, isdelivery = 0):
         mb = cmppsubmit(
@@ -215,3 +221,10 @@ class cmpp:
         else:
             mh = mb = {}
         return mh, mb
+
+    def get_recv_msg(self):
+        try:
+            b = self.__recv_queue.get_nowait()
+        except queue.Empty:
+            b = None
+        return b
